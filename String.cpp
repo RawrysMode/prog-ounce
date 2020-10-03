@@ -4,6 +4,7 @@
 #include <string.h>
 #include <iostream>
 
+size_t string::_string_count = 0;
 /*
 	Принимает на вход новое количество выделенной памяти и копирует строку
 */
@@ -22,6 +23,7 @@ void string::allocate_and_cpy(size_t new_max_length)
 */
 string::string()
 {
+	_string_count++;
 	_max_length = initial_max_length;
 	_length = 0;
 	_str = new char[_max_length + 1];
@@ -32,6 +34,7 @@ string::string()
 */
 string::string(const char* str)
 {
+	_string_count++;
 	_max_length = initial_max_length;
 	size_t len = strlen(str);
 	while (len > _max_length) _max_length *= 2; // если длина принимаемой строки больше чем выделенная память 
@@ -44,6 +47,7 @@ string::string(const char* str)
 */
 string::string(const string& str)
 {
+	_string_count++;
 	_max_length = str._max_length;
 	_length = str._length;
 	_str = new char[_max_length];
@@ -54,6 +58,7 @@ string::string(const string& str)
 */
 string::~string()
 {
+	_string_count--;
 	delete[] _str;
 }
 
@@ -197,16 +202,16 @@ string string::substr(size_t pos_begin, size_t length) const
 /*
 	Возвращение указателя на char для текущей строки 
 */
+
+size_t string::get_string_count()
+{
+	return _string_count;
+}
+
 char* string::c_str() const
 {
 	char* str = new char[_length + 1];
 	strcpy(str, _str);
 	return str;
-}
-/*
-	Вывод на экран
-*/
-void string::print() const
-{
-	std::cout << _str << std::endl;
+	std::cout << _str << std::endl; //вывод на экран
 }
