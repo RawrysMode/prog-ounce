@@ -2,7 +2,6 @@
 
 #include "String.h"
 #include <string.h>
-#include <iostream>
 
 size_t string::_string_count = 0;
 /*
@@ -173,7 +172,7 @@ size_t string::find(const char* str) const
 	size_t len = strlen(str);
 	for (size_t i = 0, j = 0; i < _length; i++, j = 0) { // Проход по символам текущей строки
 		while (*(_str + i + j) == *(str + j)) j++; // Если символы строки и подстроки совпадают счетчик увеличивается
-		if (j == len) return i; // если счетчик равен длине подстроки, то мы нашли первое вхождение
+		if (j >= len) return i; // если счетчик равен длине подстроки, то мы нашли первое вхождение
 	}
 	throw "no such substring"; // если ничего не нашли выбрасываем сообщение об этом
 }
@@ -202,16 +201,127 @@ string string::substr(size_t pos_begin, size_t length) const
 /*
 	Возвращение указателя на char для текущей строки 
 */
+char* string::c_str() const
+{
+	char* str = new char[_length + 1];
+	strcpy(str, _str);
+	return str;
+}
+/*
+	Вывод на экран
+*/
+void string::print() const
+{
+	std::cout << _str << std::endl;
+}
 
 size_t string::get_string_count()
 {
 	return _string_count;
 }
 
-char* string::c_str() const
+/*
+	Сложение строк
+*/
+string string::operator+(const char* str)
 {
-	char* str = new char[_length + 1];
-	strcpy(str, _str);
-	return str;
-	std::cout << _str << std::endl; //вывод на экран
+	string s; // Создаем новую строку, присваиваем текущую и добавляем вторую
+	s.assign(this->_str); 
+	s.append(str);
+	return s; // возвращаем эту строку
 }
+
+string string::operator+(const string& str)
+{
+	return this->operator+(str._str); // вызываем сложение с char*
+}
+
+/*
+	Удаление подстроки
+*/
+string string::operator-(const char* str)
+{
+	try {
+		size_t len = strlen(str); // Находим длину подстроки и ее положение в текущей строке
+		size_t pos = this->find(str);
+		string s;
+		s.assign(this->substr(0, pos)); // Добавляем в новую строку все что было до подстроки
+		s.append(this->substr(pos + len, _length - pos - len)); // добавляем все что было после подстроки
+		return s; // возвращаем урезаную строку
+	}
+	catch (const char*) {
+		return *this; // если подстроки нет в строке возвращаем исходную строку
+	}
+}
+
+string string::operator-(const string& str)
+{
+	return this->operator-(str._str);
+}
+
+/*
+	Символ в строке
+*/
+char& string::operator[](const size_t pos)
+{
+	if (pos >= _length) throw "wrong position";
+	return *(_str + pos); // Возвращаем символ на позиции pos
+}
+
+/*
+	Присваивание
+*/
+string& string::operator=(const char* str)
+{ // Оператор возвращает строку для того, чтобы была возможность создавать цепочки(a = b = c = "abcde")
+	if (strcmp(this->_str, str) != 0) this->assign(str); // если строки не одинаковы, присваиваем через assign;
+	return *this;
+}
+
+string& string::operator=(const string& str)
+{
+	if (strcmp(this->_str, str._str) != 0) this->assign(str);
+	return *this;
+}
+
+/*
+	Запись в бинарный файл
+*/
+void string::write_binary(std::ofstream& out)
+{
+	out.write((char*)&_max_length, sizeof(_max_length)); // Поочередно записываем байты макс. длины, длины и строки
+	out.write((char*)&_length, sizeof(_length));
+	out.write(_str, (std::streamsize)_length + 1);
+}
+ 
+/*
+	Чтение из бинарного файла
+*/
+void string::read_binary(std::ifstream& in)
+{
+	in.read((char*)&_max_length, sizeof(_max_length)); // Поочередно считываем макс. длину, длину
+	in.read((char*)&_length, sizeof(_length));
+	delete _str; // удаляем существующую строку
+	_str = new char[_length + 1];
+	in.read(_str, (std::streamsize)_length + 1); // читаем байты новой строки
+}
+
+/*
+	Вывод строки
+*/
+std::ostream& operator<<(std::ostream& out, const string& str)
+{
+	out << str._str; // Выводим c_str эквивалент в поток, так как данный оператор перегружен
+	return out;
+}
+/*
+	Ввод строки
+*/
+std::istream& operator>>(std::istream& in, string& str)
+{
+	char* buf = new char[128]; // Создаем буфер 
+	in.getline(buf, 128); // Читаем символы из потока в буфер
+	str.assign(buf); // присваиваем символы нашей строке
+	delete[] buf; // удаляем буфер
+	return in;
+}
+

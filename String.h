@@ -1,4 +1,6 @@
 #pragma once
+#include <iostream>
+#include <fstream>
 
 class string {
 
@@ -21,7 +23,30 @@ public:
 	size_t find(const string&) const;
 	string substr(size_t, size_t) const;
 	char* c_str() const;
+	void print() const;
 	static size_t get_string_count();
+	
+	string operator+(const char*);
+	string operator+(const string&);
+	string operator-(const char*);
+	string operator-(const string&);
+	char& operator[](const size_t);
+	string& operator=(const char*);
+	string& operator=(const string&);
+
+	void write_binary(std::ofstream&);
+	void read_binary(std::ifstream&);
+
+	/*
+		Класс ofstream - поток записи данных в файл наследуется от ostream,
+		так что нет смысла переопределять операцию << для ofstream, потому что
+		действия были бы те же
+	*/
+	friend std::ostream& operator<<(std::ostream&, const string&);
+	/*
+		Аналогично
+	*/
+	friend std::istream& operator>>(std::istream&, string&);
 
 private:
 	static size_t _string_count;
