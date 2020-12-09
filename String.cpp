@@ -58,7 +58,7 @@ string::string(const string& str)
 string::~string()
 {
 	_string_count--;
-	delete _str;
+	delete[] _str;
 }
 
 /*
@@ -68,9 +68,8 @@ void string::append(const char* str)
 {
 	size_t len = strlen(str);
 	if (len + _length > _max_length){ // случай если суммарная длина больше выделенной памяти
-		size_t ml = _max_length;
-		while (len + _length > ml) ml *= 2; // увеличиваем выделенную память
-		allocate_and_cpy(ml);
+		while (len + _length > _max_length) _max_length *= 2; // увеличиваем выделенную память
+		allocate_and_cpy(_max_length);
 		char* tmp = _str + _length; // ставит указатель на конец текущей строки
 		for (size_t i = 0; i < len; i++) { //дописывает принятую строку в конец текущей
 			*(tmp + i) = *(str + i);
@@ -131,9 +130,8 @@ bool string::empty() const
 void string::assign(const char* str)
 {
 	_length = strlen(str);
-	size_t ml = _max_length;
-	while (_length > ml) ml *= 2; // увеличение максимальной памяти, если нужно
-	allocate_and_cpy(ml); // выделение этой новой памяти
+	while (_length > _max_length) _max_length *= 2; // увеличение максимальной памяти, если нужно
+	allocate_and_cpy(_max_length); // выделение этой новой памяти
 	strcpy(_str, str); // копирование строк
 }
 /*
@@ -148,7 +146,7 @@ void string::assign(const string& str)
 */
 void string::insert(size_t pos, const char* str)
 {
-	if (pos > _length - 1) throw "wrong position"; // проверка правильности переданных данных
+	if (pos > _length - 1) throw str_exception("incorrect position"); // проверка правильности переданных данных
 	size_t len = strlen(str);
 	while (len + _length > _max_length) _max_length *= 2; // увеличение максимальной памяти 
 	allocate_and_cpy(_max_length); // выделение этой новой памяти
@@ -176,7 +174,7 @@ size_t string::find(const char* str) const
 		while (*(_str + i + j) == *(str + j)) j++; // Если символы строки и подстроки совпадают счетчик увеличивается
 		if (j >= len) return i; // если счетчик равен длине подстроки, то мы нашли первое вхождение
 	}
-	throw "no such substring"; // если ничего не нашли выбрасываем сообщение об этом
+	throw str_exception("no such substring"); // если ничего не нашли выбрасываем сообщение об этом
 }
 /*
 	Поиск позиции первого вхождения подстроки
@@ -190,7 +188,7 @@ size_t string::find(const string& str) const
 */
 string string::substr(size_t pos_begin, size_t length) const
 {
-	if (pos_begin + length > _length) throw "incorrect parameters"; // проверка правильности переданных данных
+	if (pos_begin + length > _length) throw str_exception("incorrect parameters"); // проверка правильности переданных данных
 	char* str = new char[length + 1]; // выделение памяти для подстроки
 	for (size_t i = 0; i < length; i++) // последовательно копируем символы в подстроку
 		*(str + i) = *(_str + pos_begin + i); 
@@ -222,60 +220,47 @@ size_t string::get_string_count()
 	return _string_count;
 }
 
-/*
-	Сложение строк
-*/
 string string::operator+(const char* str)
 {
-	string s; // Создаем новую строку, присваиваем текущую и добавляем вторую
-	s.assign(this->_str); 
+	string s;
+	s.assign(this->_str);
 	s.append(str);
-	return s; // возвращаем эту строку
+	return string(s);
 }
 
 string string::operator+(const string& str)
 {
-	return this->operator+(str._str); // вызываем сложение с char*
+	return *this + str._str;
 }
 
-/*
-	Удаление подстроки
-*/
 string string::operator-(const char* str)
 {
 	try {
-		size_t len = strlen(str); // Находим длину подстроки и ее положение в текущей строке
+		size_t len = strlen(str);
 		size_t pos = this->find(str);
 		string s;
-		s.assign(this->substr(0, pos)); // Добавляем в новую строку все что было до подстроки
-		s.append(this->substr(pos + len, _length - pos - len)); // добавляем все что было после подстроки
-		return s; // возвращаем урезаную строку
+		s.assign(this->substr(0, pos));
+		s.append(this->substr(pos + len, _length - pos - len));
+		return s;
 	}
 	catch (const char*) {
-		return *this; // если подстроки нет в строке возвращаем исходную строку
+		return *this;
 	}
 }
 
 string string::operator-(const string& str)
 {
-	return this->operator-(str._str);
+	return *this - str._str;
 }
 
-/*
-	Символ в строке
-*/
 char& string::operator[](const size_t pos)
 {
-	if (pos >= _length) throw "wrong position";
-	return *(_str + pos); // Возвращаем символ на позиции pos
+	return *(_str + pos);
 }
 
-/*
-	Присваивание
-*/
 string& string::operator=(const char* str)
-{ // Оператор возвращает строку для того, чтобы была возможность создавать цепочки(a = b = c = "abcde")
-	if (strcmp(this->_str, str) != 0) this->assign(str); // если строки не одинаковы, присваиваем через assign;
+{
+	if (strcmp(this->_str, str) != 0) this->assign(str);
 	return *this;
 }
 
@@ -285,45 +270,34 @@ string& string::operator=(const string& str)
 	return *this;
 }
 
-/*
-	Запись в бинарный файл
-*/
 void string::write_binary(std::ofstream& out)
 {
-	out.write((char*)&_max_length, sizeof(_max_length)); // Поочередно записываем байты макс. длины, длины и строки
+	out.write((char*)&_max_length, sizeof(_max_length));
 	out.write((char*)&_length, sizeof(_length));
 	out.write(_str, (std::streamsize)_length + 1);
 }
- 
-/*
-	Чтение из бинарного файла
-*/
+
 void string::read_binary(std::ifstream& in)
 {
-	in.read((char*)&_max_length, sizeof(_max_length)); // Поочередно считываем макс. длину, длину
+	in.read((char*)&_max_length, sizeof(_max_length));
 	in.read((char*)&_length, sizeof(_length));
-	delete _str; // удаляем существующую строку
+	delete _str;
 	_str = new char[_length + 1];
-	in.read(_str, (std::streamsize)_length + 1); // читаем байты новой строки
+	in.read(_str, (std::streamsize)_length + 1);
 }
 
-/*
-	Вывод строки
-*/
 std::ostream& operator<<(std::ostream& out, const string& str)
 {
-	out << str._str; // Выводим c_str эквивалент в поток, так как данный оператор перегружен
+	out << str._str;
 	return out;
 }
-/*
-	Ввод строки
-*/
+
 std::istream& operator>>(std::istream& in, string& str)
 {
-	char* buf = new char[128]; // Создаем буфер 
-	in.getline(buf, 128); // Читаем символы из потока в буфер
-	str.assign(buf); // присваиваем символы нашей строке
-	delete[] buf; // удаляем буфер
+	char* buf = new char[128];
+	in.getline(buf, 128);
+	str.assign(buf);
+	delete[] buf;
 	return in;
 }
 
